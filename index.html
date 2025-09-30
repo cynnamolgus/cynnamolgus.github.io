@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veronica's Awesome WebPage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap');
+
+        @keyframes blueprintPulse {
+            0% { background-color: #050A1A; }
+            50% { background-color: #0D1C45; }
+            100% { background-color: #050A1A; }
+        }
+
+        body {
+            font-family: 'Comic Neue', sans-serif;
+            background-color: #050A1A;
+            color: #E8E8E8;
+            min-height: 100vh;
+            animation: blueprintPulse 10s infinite alternate;
+
+            background-image: linear-gradient(0deg, transparent 24px, rgba(50, 100, 255, 0.25) 25px),
+                              linear-gradient(90deg, transparent 24px, rgba(50, 100, 255, 0.25) 25px);
+            background-size: 25px 25px;
+            overflow-x: hidden;
+            padding-bottom: 45px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 10;
+        }
+        .debug-card {
+            background-color: #1A2A44;
+            border: 3px solid #A020F0;
+            border-radius: 0;
+            padding: 2rem;
+            box-shadow: 10px 10px 0px 0px #FF00FF;
+            transition: all 0.3s ease;
+            position: relative;
+            height: fit-content;
+        }
+        .debug-card:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 13px 13px 0px 0px #FF00FF;
+        }
+        .main-title-glow {
+            background-image: linear-gradient(to right, #A020F0, #FF00FF);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 10px rgba(160, 32, 240, 0.5);
+            line-height: 0.9;
+        }
+        .heading-highlight {
+            border-bottom: 4px solid #A020F0;
+            padding-bottom: 4px;
+            display: inline-block;
+        }
+        .link-text:hover {
+            color: #FF00FF;
+            transition: color 0.2s;
+        }
+
+        .skull-gif-fixed {
+            width: 160px;
+            height: 160px;
+        }
+
+        .banana-mover {
+            transition: none;
+            cursor: pointer;
+            position: absolute; 
+            z-index: 500; 
+            pointer-events: auto; 
+        }
+
+        /* Top-center positioning for the banana */
+        .banana-top-center-in-card {
+            top: -50px; 
+            left: 50%;
+            transform: translateX(-50%); 
+            bottom: auto; 
+            right: auto; 
+        }
+
+        /* Pet element scaling */
+        #kitty, #girb, #oneko {
+            z-index: 9000 !important; 
+            transform-origin: top left;
+        }
+        #kitty, #girb {
+            transform: scale(0.5);
+        }
+        #oneko {
+            transform: scale(2) !important;
+        }
+
+        #projects-card {
+            margin-top: 140px;
+        }
+
+        /* Canvas for High-Performance Particles */
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; 
+            z-index: 999;
+        }
+    </style>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.min.js"></script>
+
+    <script src="./straycat.js"></script>
+    <script src="./GIRB.colors.js"></script>
+    <script src="./GIRB.js"></script>
+
+    <script>
+        // Global references for the application
+        let $banana;
+        let $aboutCard;
+        let $projectsCard;
+        let $cards = [];
+        let canvas, ctx;
+        let particles = [];
+        let animationFrameId = null;
+
+        const TARGETS = [
+            // About Card Targets
+            { cardIndex: 0, positionClass: 'bottom-4 right-4 top-auto left-auto' },
+            { cardIndex: 0, positionClass: 'bottom-4 left-4 top-auto right-auto' },
+            { cardIndex: 0, positionClass: 'banana-top-center-in-card' },
+
+            // Projects Card Targets
+            { cardIndex: 1, positionClass: 'bottom-4 right-4 top-auto left-auto' },
+            { cardIndex: 1, positionClass: 'bottom-4 left-4 top-auto right-auto' },
+            { cardIndex: 1, positionClass: 'banana-top-center-in-card' }
+        ];
+        
+        let currentStateIndex = 0;
+
+        // --- CANVAS PARTICLE SYSTEM FUNCTIONS ---
+
+        function createParticle(x, y, vx, vy, color, type, size, duration) {
+            particles.push({
+                x, y,
+                vx, vy,
+                color,
+                type, 
+                size: size || (Math.random() * 5 + 2),
+                life: duration || (Math.random() * 50 + 50),
+                maxLife: duration || (Math.random() * 50 + 50),
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 5,
+            });
+        }
+
+        // Draws a 5-pointed star (used for sparkle trail)
+        function drawStar(ctx, x, y, r) {
+            const spikes = 5;
+            const outerRadius = r;
+            const innerRadius = r / 2.5; 
+            let rot = (Math.PI / 2) * 3;
+            let step = Math.PI / spikes;
+
+            ctx.beginPath();
+            ctx.moveTo(x, y - outerRadius);
+            for (let i = 0; i < spikes; i++) {
+                ctx.lineTo(x + Math.cos(rot) * outerRadius, y + Math.sin(rot) * outerRadius);
+                rot += step;
+                ctx.lineTo(x + Math.cos(rot) * innerRadius, y + Math.sin(rot) * innerRadius);
+                rot += step;
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawParticles() {
+            if (!ctx) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                
+                // Update position
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+
+                // Apply friction/drag 
+                if (p.type !== 'line') {
+                    p.vx *= 0.96;
+                    p.vy *= 0.96;
+                }
+                
+                // Remove dead particles
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                const opacity = p.life / p.maxLife;
+                ctx.fillStyle = p.color.replace(')', `, ${opacity})`).replace('rgb', 'rgba');
+                ctx.strokeStyle = p.color.replace(')', `, ${opacity})`).replace('rgb', 'rgba');
+                
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                
+                if (p.type === 'sparkle') {
+                    p.rotation += p.rotationSpeed;
+                    ctx.rotate(p.rotation * Math.PI / 180);
+                    drawStar(ctx, 0, 0, p.size * opacity / 2);
+                    
+                } else if (p.type === 'dust') {
+                    // Kickback Dust / Destination Puff (Simple circle)
+                    ctx.beginPath();
+                    ctx.arc(0, 0, p.size * opacity * 0.7, 0, Math.PI * 2); 
+                    ctx.fill();
+                } else if (p.type === 'line') {
+                    // Action Line (Cyan, dynamic)
+                    ctx.lineWidth = p.size * opacity;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(p.vx * 2.2, p.vy * 2.2); 
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+            
+            animationFrameId = requestAnimationFrame(drawParticles);
+        }
+
+        // --- PARTICLE EMITTERS ---
+        
+        // Emits sparkles on mouse move
+        function emitSparkleTrail(e) {
+            const colors = ['rgb(160, 32, 240)', 'rgb(255, 0, 255)', 'rgb(0, 255, 255)']; 
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            const size = Math.random() * 10 + 8;
+            const speed = Math.random() * 8 + 4;
+            const angle = Math.random() * 2 * Math.PI;
+            
+            const vx = Math.cos(angle) * speed * 0.2;
+            const vy = Math.sin(angle) * speed * 0.2;
+
+            createParticle(e.clientX + 5, e.clientY, vx, vy, color, 'sparkle', size, 40);
+        }
+
+        // Emits teleport effects (Dust, Lines, and Smoke Puff)
+        function createTeleportEffects(startRect, destRect) {
+            const startX = startRect.left + startRect.width / 2;
+            const startY = startRect.top + startRect.height / 2;
+            
+            const destX = destRect.left + destRect.width / 2;
+            const destY = destRect.top + destRect.height / 2;
+
+            const deltaX = destX - startX;
+            const deltaY = destY - startY; 
+            
+            const baseAngle = Math.atan2(deltaY, deltaX);
+            const kickbackAngle = Math.atan2(-deltaY, -deltaX); 
+            
+            const DUST_COLOR = 'rgb(255, 255, 255)'; // Greyish White for both effects
+
+            // --- 1. Kick-back Dust (White, Recoil) ---
+            const numDust = 20; 
+            const maxKickSpeed = 3; 
+            const spreadAngle = Math.PI / 4; 
+            const dustDuration = 35; 
+
+            for (let i = 0; i < numDust; i++) {
+                let angle = kickbackAngle + (Math.random() - 0.5) * spreadAngle; 
+                const speed = Math.random() * maxKickSpeed + 1; 
+                
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                
+                createParticle(startX, startY, vx, vy, DUST_COLOR, 'dust', Math.random() * 4 + 2, dustDuration); 
+            }
+            
+            // --- 2. Action Line (Cyan, Forward) ---
+            const numLines = 6; 
+            const maxLineSpeed = 10; 
+            const lineSpread = Math.PI / 12; 
+            const lineDuration = 10; 
+
+            for (let i = 0; i < numLines; i++) {
+                let angle = baseAngle + (Math.random() - 0.5) * lineSpread; 
+                const speed = Math.random() * maxLineSpeed + 3; 
+                
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                
+                createParticle(startX, startY, vx, vy, 'rgb(0, 255, 255)', 'line', Math.random() * 4 + 2, lineDuration); 
+            }
+
+            // --- 3. Destination Puff (White Smoke) ---
+            const numPuff = 15;
+            const maxPuffSpeed = 4;
+            const puffColor = DUST_COLOR; // Now matches kickback color
+            const puffDuration = 60; 
+
+            for (let i = 0; i < numPuff; i++) {
+                const angle = Math.random() * 2 * Math.PI; 
+                // Reduced spread velocity multiplier from 0.7 to 0.5
+                const speed = Math.random() * maxPuffSpeed * 0.5 + 0.8; 
+                
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                
+                createParticle(destX, destY, vx, vy, puffColor, 'dust', Math.random() * 6 + 3, puffDuration); 
+            }
+        }
+
+
+        // --- APPLICATION LOGIC ---
+
+        function getFutureRect(targetEl, newState) {
+            if ($cards.length === 0) return { left: 0, top: 0, width: 0, height: 0 }; 
+
+            const $newParent = $cards[newState.cardIndex];
+            const newPositionClass = newState.positionClass;
+            
+            const tempEl = targetEl.cloneNode();
+            tempEl.id = 'temp-banana-pos'; 
+            tempEl.style.visibility = 'hidden';
+            tempEl.className = 'w-12 h-12 banana-mover absolute ' + newPositionClass; 
+
+            $newParent.appendChild(tempEl);
+            tempEl.offsetHeight; 
+            
+            const rect = tempEl.getBoundingClientRect();
+            tempEl.remove();
+
+            return rect;
+        }
+
+        function getRandomTarget() {
+            let newIndex;
+            const totalTargets = TARGETS.length;
+
+            do {
+                newIndex = Math.floor(Math.random() * totalTargets);
+            } while (newIndex === currentStateIndex); 
+
+            return newIndex;
+        }
+        
+        window.addEventListener('load', () => {
+            // Initialize Canvas
+            canvas = document.getElementById('particleCanvas');
+            ctx = canvas.getContext('2d');
+            
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas(); 
+            drawParticles(); // Start the particle animation loop
+
+            // Initialize DOM element references
+            $banana = document.getElementById('banana-image');
+            $aboutCard = document.getElementById('about-card');
+            $projectsCard = document.getElementById('projects-card');
+            $cards = [$aboutCard, $projectsCard];
+            const $teleportSound = document.getElementById('teleport-sound');
+
+            // --- Pet Initialization ---
+            if (typeof herekittykittykitty === 'function') {
+                herekittykittykitty('kitty'); 
+            }
+            if (typeof girb === 'function') {
+                girb();
+            }
+
+            function playTeleportSound() {
+                if ($teleportSound) {
+                    $teleportSound.currentTime = 0;
+                    $teleportSound.play().catch(e => console.warn('Sound failed to play:', e));
+                }
+            }
+
+            // Core teleport logic
+            function teleportBanana() {
+                if (!$banana || $cards.length === 0) {
+                    console.error("Teleport failed: Banana or Cards not initialized.");
+                    return;
+                }
+                
+                // 1. Capture current position and calculate new state
+                const oldRect = $banana.getBoundingClientRect(); 
+                
+                const newIndex = getRandomTarget();
+                const newState = TARGETS[newIndex];
+                const destRect = getFutureRect($banana, newState);
+                
+                // 2. Trigger the directional particle effects (at origin and destination)
+                createTeleportEffects(oldRect, destRect); 
+                
+                // 3. Move the banana (teleport)
+                const $newParent = $cards[newState.cardIndex];
+                if ($banana.parentElement !== $newParent) {
+                    $newParent.appendChild($banana);
+                }
+
+                // 4. Reset and apply new position classes
+                $banana.className = 'w-12 h-12 banana-mover absolute'; 
+                $banana.classList.add(...newState.positionClass.split(' '));
+
+                // 5. Update state and play sound
+                currentStateIndex = newIndex;
+                playTeleportSound();
+            }
+
+            // --- MOUSE LISTENERS ---
+
+            if ($banana) {
+                $banana.addEventListener('mouseenter', teleportBanana);
+            }
+            
+            // Sparkle cursor effect 
+            document.addEventListener('mousemove', emitSparkleTrail);
+
+            // --- PET SCALING LOGIC (Remains the same) ---
+            const scaleFactor = 0.5;
+            const KITTY_OFFSET_Y = 150;
+
+            function applyPersistentScale(elementId) {
+                const element = document.getElementById(elementId);
+                if (!element) return;
+
+                const yOffset = elementId === 'kitty' ? KITTY_OFFSET_Y : 0;
+                const yTranslate = yOffset > 0 ? `translateY(${yOffset}px)` : '';
+
+                element.style.transform = `scale(${scaleFactor}) ${yTranslate}`.trim();
+
+                const observer = new MutationObserver(mutations => {
+                    mutations.forEach(mutation => {
+                        if (mutation.attributeName === 'style') {
+                            const currentTransform = element.style.transform;
+                            let flipFactor = 1;
+
+                            const match = currentTransform.match(/scale(X|Y)?\((-?\d+\.?\d*)/);
+
+                            if (match && parseFloat(match[2]) < 0) {
+                                flipFactor = -1;
+                            }
+
+                            const newScaleX = flipFactor * scaleFactor;
+                            const newScaleY = scaleFactor;
+
+                            const scaleAndTranslateRemovedTransform = currentTransform
+                                .replace(/scale(X|Y)?\([^)]+\)/g, '')
+                                .replace(/translateY\([^)]+\)/g, '')
+                                .trim();
+
+                            element.style.transform = `scale(${newScaleX}, ${newScaleY}) ${yTranslate} ${scaleAndTranslateRemovedTransform}`.trim();
+                        }
+                    });
+                });
+
+                setTimeout(() => {
+                    observer.observe(element, { attributes: true, subtree: false });
+                }, 100);
+            }
+
+            setTimeout(() => {
+                // Wait for the pet libraries to create the elements before observing
+                applyPersistentScale('kitty');
+                applyPersistentScale('girb');
+            }, 500);
+        });
+    </script>
+</head>
+<body class="antialiased">
+    <!-- Canvas must be the first child in the body for fixed positioning to work -->
+    <canvas id="particleCanvas"></canvas> 
+    
+    <!-- Hidden Audio for Teleport Sound -->
+    <audio id="teleport-sound" src="./teleport.ogg" preload="auto"></audio>
+
+    <div class="container">
+        <header class="text-center py-16">
+            <div class="flex justify-center items-center relative mb-4">
+                <img src="./spinning-skull-b.gif"
+                    alt="Spinning Flaming Skull B"
+                    class="skull-gif-fixed hidden sm:block"
+                    style="margin-right: -26px;"
+                />
+
+                <h1 class="text-7xl md:text-9xl font-bold tracking-tighter main-title-glow inline-block whitespace-nowrap">VERONICA'S</h1>
+
+                <img src="./spinning-skull-a.gif"
+                    alt="Spinning Flaming Skull A"
+                    class="skull-gif-fixed ml-6 hidden sm:block"
+                />
+            </div>
+            <p class="mt-6 text-3xl font-light text-gray-400">COOL PERSNOAL PAGE</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
+
+            <div class="debug-card" id="about-card">
+                <img src="./banana-dance.gif"
+                    alt="Dancing Banana Pixel Art"
+                    id="banana-image"
+                    class="w-12 h-12 banana-mover absolute bottom-4 right-4 top-auto left-auto"
+                />
+                <h2 class="text-4xl tracking-wide mb-6 text-purple-400">
+                    <span class="heading-highlight">A B O U T //</span>
+                </h2>
+                <p class="leading-relaxed text-gray-300">
+                    Veronica (a.k.a. the "cinnamon bird") is a self-taught programmer with lots of hobby experience dabbling with various projects. She loves creative problem-solving at the intersection of elegant mathematic abstractions and real-life engineering constraints, historical fencing, and really likes words like "cybernetics" or "autopoiesis". If presented with a broken, janky system, the bucket of brainworms that inhabit her cranium will waste no time trying to look for ways to make it better, often without any conscious control.
+                </p>
+
+                <!-- Vertical spacing fixed with standard mt-8 -->
+                <div class="mt-8 text-center">
+                    <img src="./brainworms.png"
+                        alt="A small square image of brainworms"
+                        class="mx-auto w-52 h-52 object-contain rounded-lg border border-[#A020F0]"
+                        onerror="this.onerror=null;this.src='https://placehold.co/208x208/1A2A44/E8E8E8?text=brainworms.png+Placeholder'"
+                    />
+                    <p class="text-sm mt-2 text-gray-400">
+                        Pictured: the expert team of brainworms™
+                    </p>
+                </div>
+            </div>
+
+            <div class="debug-card" id="projects-card">
+                <h2 class="text-4xl tracking-wide mb-6 text-fuchsia-400">
+                    <span class="heading-highlight">P R O J E C T S //</span>
+                </h2>
+                <ul class="space-y-4">
+                    <li class="border-b border-gray-700 pb-3">
+                        <a href="https://github.com/cynnamolgus/GViNT" class="block text-white link-text font-semibold">
+                            Godot Visual Novel Tools
+                            <span class="text-gray-400 block text-m mt-1">A plugin for the Godot game engine that implements a simple scripting language inspired by RenPy & meant to help with cutscene and VN scripting without requiring sophisticated programming abilities. Currently being re-written from a Godot 3.x prototype to a cleaner 4.x release.</span>
+                        </a>
+                    </li>
+                    <li class="border-b border-gray-700 pb-3">
+                        <a href="#" class="block text-white link-text font-semibold">
+                            RC Mod Custom Logic Adventures
+                            <span class="text-gray-400 block text-m mt-1">A video documentary of my experiences working with a scripting language that's not just poorly designed and implemented, but aggressively hostile to a programmer. I ended up taking it pretty far out of sheer spite. Video currently in production, coming October 2025.</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="block text-white link-text font-semibold">
+                            More projects
+                            <span class="text-gray-400 block text-m mt-1">Coming soon...</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="col-span-full mt-12">
+                <img src="./identity_transform.png" class="block mx-auto max-w-full h-auto rounded-lg border-4 border-[#A020F0]/70 shadow-2xl transition-all duration-300 hover:scale-[1.01]" style="max-height: 450px;" alt="Identity Transformation Concept Art"/>
+            </div>
+
+        </main>
+
+        <footer class="text-center mt-20 text-gray-500 text-sm border-t border-gray-700 pt-6">
+            <p>&copy; 2025 All Rights Reserved.</p>
+            <p>
+                Pet Code:
+                <a href="https://github.com/adryd325/oneko.js" class="link-text text-gray-400 hover:text-[#FF00FF]">oneko.js</a> |
+                <a href="https://github.com/alienmelon/straycat.js" class="link-text text-gray-400 hover:text-[#FF00FF]">straycat.js</a> |
+                <a href="https://github.com/alienmelon/GIRB.js" class="link-text text-gray-400 hover:text-[#FF00FF]">GIRB.js</a>
+                <p>teleporting banana by Gemini 2.5 Flash</p>
+            </p>
+            <p>⥀</p>
+        </footer>
+    </div>
+    <script src="./oneko.js"></script>
+</body>
+</html>
