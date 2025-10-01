@@ -13,20 +13,89 @@
             50% { background-color: #0D1C45; }
             100% { background-color: #050A1A; }
         }
+        
+        @keyframes flashA {
+            0% { background-color: #002500; } 
+            10% { background-color: #00FF00; } 
+            100% { background-color: #002500; } 
+        }
+
+        .bg-a {
+            animation: flashA 2s ease-out forwards; 
+        }
+
+        @keyframes flashB {
+            0% { background-color: #660000; } 
+            10% { background-color: #FF0000; } 
+            100% { background-color: #660000; } 
+        }
+        
+        .bg-b {
+            animation: flashB 2s ease-out forwards; 
+        }
+
+        @keyframes glitchEffect {
+            0% {
+                transform: none;
+                filter: none;
+            }
+            5% {
+                filter: brightness(300%) contrast(300%) grayscale(50%);
+                transform: scaleX(1.02);
+            }
+            10%, 40% {
+                transform: translate3d(5px, -5px, 0) skewX(2deg);
+                filter: hue-rotate(90deg) contrast(150%);
+            }
+            20%, 50% {
+                transform: translate3d(-5px, 5px, 0) skewX(-2deg);
+                filter: hue-rotate(-90deg) contrast(150%);
+            }
+            80% {
+                transform: translate3d(1px, 1px, 0);
+                filter: saturate(150%);
+            }
+            100% {
+                transform: none;
+                filter: none;
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .animate-pulse {
+            animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
 
         body {
             font-family: 'Comic Neue', sans-serif;
             background-color: #050A1A;
             color: #E8E8E8;
             min-height: 100vh;
-            animation: blueprintPulse 10s infinite alternate;
+            
+            animation: none;
 
             background-image: linear-gradient(0deg, transparent 24px, rgba(50, 100, 255, 0.25) 25px),
                               linear-gradient(90deg, transparent 24px, rgba(50, 100, 255, 0.25) 25px);
             background-size: 25px 25px;
             overflow-x: hidden;
             padding-bottom: 45px;
+            
+            transition: all 0.05s ease;
         }
+        
+        .blueprint-active {
+            animation: blueprintPulse 10s infinite alternate;
+        }
+        
+        .sys-override-active {
+            animation: glitchEffect 0.3s steps(2) forwards;
+        }
+
         .container {
             max-width: 1000px;
             margin: auto;
@@ -44,10 +113,23 @@
             position: relative;
             height: fit-content;
         }
-        .debug-card:hover {
-            transform: translate(-3px, -3px);
-            box-shadow: 13px 13px 0px 0px #FF00FF;
+        
+        .debug-alert-static {
+            background-color: #1A2A44;
+            border: 3px solid #A020F0;
+            border-radius: 0;
+            padding: 2rem;
+            box-shadow: 10px 10px 0px 0px #FF00FF;
+            position: relative;
         }
+
+        #modal {
+            border-color: #00FFFF;
+            box-shadow: 10px 10px 0px 0px #00AAFF;
+            background-color: #0A1A2A;
+        }
+
+
         .main-title-glow {
             background-image: linear-gradient(to right, #A020F0, #FF00FF);
             -webkit-background-clip: text;
@@ -67,8 +149,12 @@
         }
 
         .skull-gif-fixed {
-            width: 160px;
-            height: 160px;
+            width: 10vw;
+            height: 10vw;
+            min-width: 80px;
+            min-height: 80px;
+            max-width: 160px;
+            max-height: 160px;
         }
 
         .banana-mover {
@@ -86,20 +172,28 @@
             bottom: auto; 
             right: auto; 
         }
+        
+        .error-pos {
+            left: -500px;
+            top: -500px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.5s ease-in-out;
+        }
 
         #kitty, #girb, #oneko {
             z-index: 9000 !important; 
             transform-origin: top left;
         }
-        #kitty, #girb {
-            transform: scale(0.5);
+        #kitty, #girb { 
+            transform: scale(0.5); 
         }
         #oneko {
             transform: scale(2) !important;
         }
 
         #projects-card {
-            margin-top: 140px;
+            margin-top: 140px; 
         }
 
         #particleCanvas {
@@ -111,14 +205,117 @@
             pointer-events: none; 
             z-index: 999;
         }
+
+        @media (max-width: 640px) {
+            .skull-gif-fixed {
+                margin-right: -10px !important;
+                margin-left: 10px !important;
+            }
+        }
+        
     </style>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.min.js"></script>
-
     <script src="./straycat.js"></script>
-    <script src="./GIRB.colors.js"></script>
     <script src="./girb.js"></script>
+</head>
+<body class="antialiased"">
+    <canvas id="particleCanvas"></canvas> 
+    
+    <audio id="teleport-sound" src="./teleport.ogg" preload="auto"></audio>
+    <audio id="alert-sound" src="./glitch-tear.ogg" preload="auto"></audio>
+
+    <div class="container">
+        <header class="text-center py-16">
+            <div class="flex justify-center items-center relative mb-4">
+                <img src="./spinning-skull-b.gif"
+                    class="skull-gif-fixed hidden sm:block"
+                    style="margin-right: -26px;"
+                />
+
+                <h1 class="text-7xl md:text-9xl font-bold tracking-tighter main-title-glow inline-block whitespace-nowrap" id="main-page-title">VERONICA'S</h1>
+
+                <img src="./spinning-skull-a.gif"
+                    class="skull-gif-fixed ml-6 hidden sm:block"
+                />
+            </div>
+            <p class="mt-6 text-3xl font-light text-gray-400" id="page-subtitle">COOL PERSNOAL PAGE</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
+
+            <div class="debug-card" id="about-card">
+                <img src="./banana-dance.gif"
+                    id="banana-image"
+                    class="w-12 h-12 banana-mover absolute bottom-4 right-4 top-auto left-auto"
+                />
+                <h2 class="text-4xl tracking-wide mb-6 text-purple-400">
+                    <span class="heading-highlight">A B O U T //</span>
+                </h2>
+                <p class="leading-relaxed text-gray-300">
+                    Veronica (a.k.a. the "cinnamon bird") is a self-taught programmer with lots of hobby experience dabbling with various projects. She loves creative problem-solving at the intersection of elegant mathematic abstractions and real-life engineering constraints, historical fencing, and really likes words like "cybernetics" or "autopoiesis". If presented with a broken, janky system, the bucket of brainworms that inhabit her cranium will waste no time trying to look for ways to make it better, often without any conscious control.
+                </p>
+
+                <div class="mt-8 text-center">
+                    <img src="./brainworms.png"
+                        class="mx-auto w-52 h-52 object-contain rounded-lg border border-[#A020F0]"
+                    />
+                    <p class="text-sm mt-2 text-gray-400">
+                        Pictured: the expert team of brainworms™
+                    </p>
+                </div>
+            </div>
+
+            <div class="debug-card" id="projects-card">
+                <h2 class="text-4xl tracking-wide mb-6 text-fuchsia-400" id="projects-title">
+                    <span class="heading-highlight">P R O J E C T S //</span>
+                </h2>
+                <div id="projects-content">
+                    <ul class="space-y-4">
+                        <li class="border-b border-gray-700 pb-3">
+                            <a href="https://github.com/cynnamolgus/GViNT" class="block text-white link-text font-semibold">
+                                Godot Visual Novel Tools
+                                <span class="text-gray-400 block text-m mt-1">A plugin for the Godot game engine that implements a simple scripting language inspired by RenPy & meant to help with cutscene and VN scripting without requiring sophisticated programming abilities. Currently being re-written from a Godot 3.x prototype to a cleaner 4.x release.</span>
+                            </a>
+                        </li>
+                        <li class="border-b border-gray-700 pb-3">
+                            <a href="#" class="block text-white link-text font-semibold">
+                                RC Mod Custom Logic Adventures
+                                <span class="text-gray-400 block text-m mt-1">A video documentary of my experiences working with a scripting language that's not just poorly designed and implemented, but aggressively hostile to a programmer. I ended up taking it pretty far out of sheer spite. Video currently in production, coming October 2025.</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="block text-white link-text font-semibold">
+                                More projects
+                                <span class="text-gray-400 block text-m mt-1">Coming soon...</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="col-span-full mt-12">
+                <img src="./identity_transform.png"
+                    id="identity-transform-img"
+                    class="block mx-auto max-w-full h-auto rounded-lg border-4 border-[#A020F0]/70 shadow-2xl transition-all duration-300 hover:scale-[1.01]" 
+                    style="max-height: 450px;"
+                />
+            </div>
+
+        </main>
+
+        <footer class="text-center mt-20 text-gray-500 text-sm border-t border-gray-700 pt-6">
+            <p>&copy; 2025 All Rights Reserved.</p>
+            <p>
+                Pet Code: <a href="https://github.com/adryd325/oneko.js" class="link-text text-gray-400 hover:text-[#FF00FF]">oneko.js</a> |
+                <a href="https://github.com/alienmelon/straycat.js" class="link-text text-gray-400 hover:text-[#FF00FF]">straycat.js</a> |
+                <a href="https://github.com/alienmelon/GIRB.js" class="link-text text-gray-400 hover:text-[#FF00FF]">GIRB.js</a>
+            </p>
+            <p>⥀</p>
+        </footer>
+    </div>
+    <script src="./oneko.js"></script>
 
     <script>
         let $banana;
@@ -127,21 +324,19 @@
         let $cards = [];
         let canvas, ctx;
         let particles = [];
-        let animationFrameId = null;
-
+        
         const TARGETS = [
-            // About Card Targets
             { cardIndex: 0, positionClass: 'bottom-4 right-4 top-auto left-auto' },
             { cardIndex: 0, positionClass: 'bottom-4 left-4 top-auto right-auto' },
             { cardIndex: 0, positionClass: 'banana-top-center-in-card' },
-
-            // Projects Card Targets
             { cardIndex: 1, positionClass: 'bottom-4 right-4 top-auto left-auto' },
             { cardIndex: 1, positionClass: 'bottom-4 left-4 top-auto right-auto' },
             { cardIndex: 1, positionClass: 'banana-top-center-in-card' }
         ];
         
+        const ERROR = { cardIndex: 0, positionClass: 'error-pos' }; 
         let currentStateIndex = 0;
+        
 
         function createParticle(x, y, vx, vy, color, type, size, duration) {
             particles.push({
@@ -188,7 +383,6 @@
                 p.y += p.vy;
                 p.life--;
 
-                // Apply friction/drag 
                 if (p.type !== 'line') {
                     p.vx *= 0.96;
                     p.vy *= 0.96;
@@ -212,12 +406,10 @@
                     drawStar(ctx, 0, 0, p.size * opacity / 2);
                     
                 } else if (p.type === 'dust') {
-                    // Kickback Dust / Destination Puff (Simple circle)
                     ctx.beginPath();
                     ctx.arc(0, 0, p.size * opacity * 0.7, 0, Math.PI * 2); 
                     ctx.fill();
                 } else if (p.type === 'line') {
-                    // Action Line (Cyan, dynamic)
                     ctx.lineWidth = p.size * opacity;
                     ctx.lineCap = 'round';
                     ctx.beginPath();
@@ -229,7 +421,7 @@
                 ctx.restore();
             }
             
-            animationFrameId = requestAnimationFrame(drawParticles);
+            requestAnimationFrame(drawParticles);
         }
 
         function emitSparkleTrail(e) {
@@ -245,8 +437,8 @@
 
             createParticle(e.clientX + 5, e.clientY, vx, vy, color, 'sparkle', size, 40);
         }
-
-        function createTeleportEffects(startRect, destRect) {
+        
+        function createTeleportEffects(startRect, destRect, hideDestinationPuff = false) {
             const startX = startRect.left + startRect.width / 2;
             const startY = startRect.top + startRect.height / 2;
             
@@ -261,7 +453,7 @@
             
             const DUST_COLOR = 'rgb(255, 255, 255)'; 
 
-            // Kick-back Dust (White, Recoil)
+            // 1. Kickback Dust
             const numDust = 20; 
             const maxKickSpeed = 3; 
             const spreadAngle = Math.PI / 4; 
@@ -277,7 +469,7 @@
                 createParticle(startX, startY, vx, vy, DUST_COLOR, 'dust', Math.random() * 4 + 2, dustDuration); 
             }
             
-            // Action Line (Cyan, Forward)
+            // 2. Action Lines
             const numLines = 6; 
             const maxLineSpeed = 10; 
             const lineSpread = Math.PI / 12; 
@@ -293,23 +485,24 @@
                 createParticle(startX, startY, vx, vy, 'rgb(0, 255, 255)', 'line', Math.random() * 4 + 2, lineDuration); 
             }
 
-            // Destination Puff (White Smoke)
-            const numPuff = 15;
-            const maxPuffSpeed = 4;
-            const puffColor = DUST_COLOR; 
-            const puffDuration = 60; 
+            // 3. Destination Puff
+            if (!hideDestinationPuff) {
+                const numPuff = 15;
+                const maxPuffSpeed = 4;
+                const puffColor = DUST_COLOR; 
+                const puffDuration = 60; 
 
-            for (let i = 0; i < numPuff; i++) {
-                const angle = Math.random() * 2 * Math.PI; 
-                const speed = Math.random() * maxPuffSpeed * 0.5 + 0.8; 
-                
-                const vx = Math.cos(angle) * speed;
-                const vy = Math.sin(angle) * speed;
-                
-                createParticle(destX, destY, vx, vy, puffColor, 'dust', Math.random() * 6 + 3, puffDuration); 
+                for (let i = 0; i < numPuff; i++) {
+                    const angle = Math.random() * 2 * Math.PI; 
+                    const speed = Math.random() * maxPuffSpeed * 0.5 + 0.8; 
+                    
+                    const vx = Math.cos(angle) * speed;
+                    const vy = Math.sin(angle) * speed;
+                    
+                    createParticle(destX, destY, vx, vy, puffColor, 'dust', Math.random() * 6 + 3, puffDuration); 
+                }
             }
         }
-
 
         function getFutureRect(targetEl, newState) {
             if ($cards.length === 0) return { left: 0, top: 0, width: 0, height: 0 }; 
@@ -341,6 +534,49 @@
 
             return newIndex;
         }
+
+        function playTeleportSound() {
+            const $teleportSound = document.getElementById('teleport-sound'); 
+            if ($teleportSound) {
+                $teleportSound.currentTime = 0;
+                $teleportSound.play().catch(e => {
+                    console.log("Audio autoplay prevented for teleport sound.");
+                }); 
+            }
+        }
+        
+        function _runBananaMovement() {
+            if (!$banana || $cards.length === 0) {
+                return; 
+            }
+            
+            const oldRect = $banana.getBoundingClientRect(); 
+            
+            const newIndex = getRandomTarget();
+            const newState = TARGETS[newIndex];
+            const destRect = getFutureRect($banana, newState);
+            
+            createTeleportEffects(oldRect, destRect); 
+            
+            const $newParent = $cards[newState.cardIndex];
+            if ($banana.parentElement !== $newParent) {
+                $newParent.appendChild($banana);
+            }
+
+            $banana.className = 'w-12 h-12 banana-mover absolute'; 
+            $banana.classList.add(...newState.positionClass.split(' '));
+
+            currentStateIndex = newIndex;
+            
+            playTeleportSound();
+        }
+
+        window.teleportBananaFunctionReference = function() {
+            if (window.debugBootstrapFunc()) {
+                _runBananaMovement();
+            }
+        }
+
         
         window.addEventListener('load', () => {
             canvas = document.getElementById('particleCanvas');
@@ -353,66 +589,33 @@
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas(); 
             drawParticles();
+            
+            document.body.classList.add('blueprint-active');
 
-            // Initialize DOM element references
+
             $banana = document.getElementById('banana-image');
             $aboutCard = document.getElementById('about-card');
             $projectsCard = document.getElementById('projects-card');
             $cards = [$aboutCard, $projectsCard];
-            const $teleportSound = document.getElementById('teleport-sound');
+            
+            if ($banana) {
+                $banana.addEventListener('mouseenter', window.teleportBananaFunctionReference); 
+            }
+            
+            document.addEventListener('mousemove', emitSparkleTrail);
+            
+            
 
-            // Pet Initialization
             if (typeof herekittykittykitty === 'function') {
-                herekittykittykitty('kitty'); 
+                herekittykittykitty('Luna'); 
             }
             if (typeof girb === 'function') {
                 girb();
             }
 
-            function playTeleportSound() {
-                if ($teleportSound) {
-                    $teleportSound.currentTime = 0;
-                    $teleportSound.play().catch(e => {});
-                }
-            }
-
-            // Core teleport logic
-            function teleportBanana() {
-                if (!$banana || $cards.length === 0) {
-                    return; 
-                }
-                
-                // Capture current position and calculate new state
-                const oldRect = $banana.getBoundingClientRect(); 
-                
-                const newIndex = getRandomTarget();
-                const newState = TARGETS[newIndex];
-                const destRect = getFutureRect($banana, newState);
-                
-                createTeleportEffects(oldRect, destRect); 
-                
-                // Move the banana (teleport)
-                const $newParent = $cards[newState.cardIndex];
-                if ($banana.parentElement !== $newParent) {
-                    $newParent.appendChild($banana);
-                }
-
-                // Reset and apply new position classes
-                $banana.className = 'w-12 h-12 banana-mover absolute'; 
-                $banana.classList.add(...newState.positionClass.split(' '));
-
-                currentStateIndex = newIndex;
-                playTeleportSound();
-            }
-
-            if ($banana) {
-                $banana.addEventListener('mouseenter', teleportBanana);
-            }
-            
-            document.addEventListener('mousemove', emitSparkleTrail);
-
+            // Custom logic to maintain the scale of the pets after oneko.js / girb.js moves them
             const scaleFactor = 0.5;
-            const KITTY_OFFSET_Y = 150;
+            const KITTY_OFFSET_Y = 150; 
 
             function applyPersistentScale(elementId) {
                 const element = document.getElementById(elementId);
@@ -435,15 +638,15 @@
                                 flipFactor = -1;
                             }
 
-                            const newScaleX = flipFactor * scaleFactor;
-                            const newScaleY = scaleFactor;
+                            const scaleX = flipFactor * scaleFactor;
+                            const scaleY = scaleFactor;
 
                             const scaleAndTranslateRemovedTransform = currentTransform
                                 .replace(/scale(X|Y)?\([^)]+\)/g, '')
                                 .replace(/translateY\([^)]+\)/g, '')
                                 .trim();
 
-                            element.style.transform = `scale(${newScaleX}, ${newScaleY}) ${yTranslate} ${scaleAndTranslateRemovedTransform}`.trim();
+                            element.style.transform = `scale(${scaleX}, ${scaleY}) ${yTranslate} ${scaleAndTranslateRemovedTransform}`.trim();
                         }
                     });
                 });
@@ -459,102 +662,5 @@
             }, 500);
         });
     </script>
-</head>
-<body class="antialiased">
-    <canvas id="particleCanvas"></canvas> 
-    
-    <audio id="teleport-sound" src="./teleport.ogg" preload="auto"></audio>
-
-    <div class="container">
-        <header class="text-center py-16">
-            <div class="flex justify-center items-center relative mb-4">
-                <img src="./spinning-skull-b.gif"
-                    alt="Spinning Flaming Skull B"
-                    class="skull-gif-fixed hidden sm:block"
-                    style="margin-right: -26px;"
-                />
-
-                <h1 class="text-7xl md:text-9xl font-bold tracking-tighter main-title-glow inline-block whitespace-nowrap">VERONICA'S</h1>
-
-                <img src="./spinning-skull-a.gif"
-                    alt="Spinning Flaming Skull A"
-                    class="skull-gif-fixed ml-6 hidden sm:block"
-                />
-            </div>
-            <p class="mt-6 text-3xl font-light text-gray-400">COOL PERSNOAL PAGE</p>
-        </header>
-
-        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
-
-            <div class="debug-card" id="about-card">
-                <img src="./banana-dance.gif"
-                    alt="Dancing Banana Pixel Art"
-                    id="banana-image"
-                    class="w-12 h-12 banana-mover absolute bottom-4 right-4 top-auto left-auto"
-                />
-                <h2 class="text-4xl tracking-wide mb-6 text-purple-400">
-                    <span class="heading-highlight">A B O U T //</span>
-                </h2>
-                <p class="leading-relaxed text-gray-300">
-                    Veronica (a.k.a. the "cinnamon bird") is a self-taught programmer with lots of hobby experience dabbling with various projects. She loves creative problem-solving at the intersection of elegant mathematic abstractions and real-life engineering constraints, historical fencing, and really likes words like "cybernetics" or "autopoiesis". If presented with a broken, janky system, the bucket of brainworms that inhabit her cranium will waste no time trying to look for ways to make it better, often without any conscious control.
-                </p>
-
-                <div class="mt-8 text-center">
-                    <img src="./brainworms.png"
-                        alt="A small square image of brainworms"
-                        class="mx-auto w-52 h-52 object-contain rounded-lg border border-[#A020F0]"
-                        onerror="this.onerror=null;this.src='https://placehold.co/208x208/1A2A44/E8E8E8?text=brainworms.png+Placeholder'"
-                    />
-                    <p class="text-sm mt-2 text-gray-400">
-                        Pictured: the expert team of brainworms™
-                    </p>
-                </div>
-            </div>
-
-            <div class="debug-card" id="projects-card">
-                <h2 class="text-4xl tracking-wide mb-6 text-fuchsia-400">
-                    <span class="heading-highlight">P R O J E C T S //</span>
-                </h2>
-                <ul class="space-y-4">
-                    <li class="border-b border-gray-700 pb-3">
-                        <a href="https://github.com/cynnamolgus/GViNT" class="block text-white link-text font-semibold">
-                            Godot Visual Novel Tools
-                            <span class="text-gray-400 block text-m mt-1">A plugin for the Godot game engine that implements a simple scripting language inspired by RenPy & meant to help with cutscene and VN scripting without requiring sophisticated programming abilities. Currently being re-written from a Godot 3.x prototype to a cleaner 4.x release.</span>
-                        </a>
-                    </li>
-                    <li class="border-b border-gray-700 pb-3">
-                        <a href="#" class="block text-white link-text font-semibold">
-                            RC Mod Custom Logic Adventures
-                            <span class="text-gray-400 block text-m mt-1">A video documentary of my experiences working with a scripting language that's not just poorly designed and implemented, but aggressively hostile to a programmer. I ended up taking it pretty far out of sheer spite. Video currently in production, coming October 2025.</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="block text-white link-text font-semibold">
-                            More projects
-                            <span class="text-gray-400 block text-m mt-1">Coming soon...</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="col-span-full mt-12">
-                <img src="./identity_transform.png" class="block mx-auto max-w-full h-auto rounded-lg border-4 border-[#A020F0]/70 shadow-2xl transition-all duration-300 hover:scale-[1.01]" style="max-height: 450px;"/>
-            </div>
-
-        </main>
-
-        <footer class="text-center mt-20 text-gray-500 text-sm border-t border-gray-700 pt-6">
-            <p>&copy; 2025 All Rights Reserved.</p>
-            <p>
-                Pet Code:
-                <a href="https://github.com/adryd325/oneko.js" class="link-text text-gray-400 hover:text-[#FF00FF]">oneko.js</a> |
-                <a href="https://github.com/alienmelon/straycat.js" class="link-text text-gray-400 hover:text-[#FF00FF]">straycat.js</a> |
-                <a href="https://github.com/alienmelon/GIRB.js" class="link-text text-gray-400 hover:text-[#FF00FF]">GIRB.js</a>
-            </p>
-            <p class="text-sm mt-1">Teleporting banana by Gemini 2.5 flash</p>
-            <p>⥀</p>
-        </footer>
-    </div>
-    <script src="./oneko.js"></script>
 </body>
 </html>
